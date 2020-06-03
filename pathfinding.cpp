@@ -114,8 +114,6 @@ double heuristic(Position pos1, Position pos2) {
 vector<PathFindStruct> find_path(PathFindStruct start,
                                  PathFindStruct target,
                                  vector<vector<PathFindStruct>> map_grid) {
-
-    vector<PathFindStruct> path = {target};
     Position target_pos = target.pos;
     Position start_pos = start.pos;
     start.camefrom.x = -9;
