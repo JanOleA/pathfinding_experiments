@@ -149,15 +149,18 @@ vector<PathFindStruct> find_path(PathFindStruct start,
             cout << "(" << item.pos.x << ", " << item.pos.y << ")";
         }
         cout << "]" << endl;*/
-        current = open_set[0];
+        argmin = distance(open_set_fscores.begin(),
+                          min_element(open_set_fscores.begin(),
+                          open_set_fscores.end()));
+        current = open_set[argmin];
 
         if (current.pos.x == target.pos.x && current.pos.y == target.pos.y) {
             //cout << "Target reached" << endl;
             return reconstruct_path(current, map_grid);
         }
 
-        open_set.erase(open_set.begin());
-        open_set_fscores.erase(open_set_fscores.begin());
+        open_set.erase(open_set.begin() + argmin);
+        open_set_fscores.erase(open_set_fscores.begin() + argmin);
 
         closed_set.push_back(current);
 
