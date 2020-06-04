@@ -89,9 +89,11 @@ vector<PathFindStruct> reconstruct_path(PathFindStruct target,
     vector<PathFindStruct> path = {target};
 
     PathFindStruct current = target;
+    cout << current.fscore << " " << current.gscore << endl;
     Position current_cf = current.camefrom;
     while (current_cf.x != -9 and current_cf.y != -9) {
         current = map_grid[current_cf.y][current_cf.x];
+        cout << current.fscore << " " << current.gscore << endl;
         current_cf = current.camefrom;
         path.push_back(current);
     }
@@ -182,7 +184,7 @@ vector<PathFindStruct> find_path(PathFindStruct start,
                 neighbor = map_grid[other_y][other_x];
                 neighbor_pos = neighbor.pos;
 
-                tentative_gscore = current.gscore + sqrt((double)(i*i) + (double)(j*j))*neighbor.cost;
+                tentative_gscore = (double)current.gscore + sqrt((double)(i*i) + (double)(j*j))*((double)(i*i) + (double)(j*j))*(double)neighbor.cost;
 
                 if (tentative_gscore < neighbor.gscore) {
                     neighbor.camefrom.x = current_pos.x;

@@ -28,9 +28,11 @@ def heuristic(pos1, pos2):
 def reconstruct_path(target):
     path = [target.position]
     current = target
+    print(current.fscore, current.gscore)
     while current.camefrom is not None:
         path.append(current.camefrom.position)
         current = current.camefrom
+        print(current.fscore, current.gscore)
 
     return np.array(path)[::-1]
 
@@ -62,9 +64,10 @@ def find_path(start, target, map_grid):
 
         if current == target:
             """ Target reached """
+            """
             for item in open_set + closed_set:
                 item.fscore = np.inf
-                item.gscore = np.inf
+                item.gscore = np.inf"""
             return reconstruct_path(target)
         
         open_set.pop(ind)
