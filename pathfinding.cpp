@@ -1,12 +1,14 @@
 #include <iostream>
 #include <fstream>
+#include <iterator>
 #include <vector>
 #include <algorithm>
 #include <math.h>
 #include <limits>
 #include <string.h>
+#include <chrono>
 using namespace std;
-
+using namespace std::chrono;
 
 struct Position {
     int x;
@@ -21,6 +23,7 @@ struct PathFindStruct
     double cost = 1;
     double gscore = numeric_limits<double>::infinity();
     double fscore = numeric_limits<double>::infinity();
+    bool in_open_set = false;
 };
 
 
@@ -29,7 +32,7 @@ void print_vector(vector<PathFindStruct> v) {
     for (PathFindStruct item : v) {
         cout << "[" << item.pos.x << ", " << item.pos.y << "],";
     }
-    cout << "]" << endl;
+    cout << "]";
 }
 
 
@@ -38,9 +41,9 @@ void print_map_grid(vector<vector<PathFindStruct>> v){
     for (vector<PathFindStruct> row : v) {
         for (PathFindStruct item : row) {
             if (item.cost >= 10) {
-                cout << "m" << " ";
+                cout << " m " << " ";
             } else {
-                cout << item.cost << " ";
+                cout << item.fscore << " ";
             }
         }
         cout << endl;
@@ -58,7 +61,6 @@ void print_map_grid_pos(vector<vector<PathFindStruct>> v){
         cout << endl;
     }
 }
-
 
 
 void transpose(vector<vector<PathFindStruct>> &b)
@@ -84,16 +86,36 @@ void transpose(vector<vector<PathFindStruct>> &b)
 }
 
 
-vector<PathFindStruct> reconstruct_path(PathFindStruct target,
-                                        vector<vector<PathFindStruct>> map_grid) {
-    vector<PathFindStruct> path = {target};
+class Finder {
+private:
+    vector<vector<PathFindStruct>> map_grid_clear;
+    vector<PathFindStruct> reconstruct_path(PathFindStruct target,
+                                            vector<vector<PathFindStruct>> map_grid);
+    double heuristic(Position pos1, Position pos2);
+    bool write_to_file;
 
+public:
+    Finder(vector<vector<PathFindStruct>> map_grid, bool write_to_file);
+    vector<PathFindStruct> find_path(PathFindStruct start,
+                                     PathFindStruct target);
+    vector<vector<PathFindStruct>> get_map_grid();
+    PathFindStruct get_node(int x, int y);
+};
+
+
+Finder::Finder(vector<vector<PathFindStruct>> map_grid, bool write_to_file_) {
+    map_grid_clear = map_grid;
+    write_to_file = write_to_file_;
+}
+
+
+vector<PathFindStruct> Finder::reconstruct_path(PathFindStruct target,
+                                                vector<vector<PathFindStruct>> map_grid) {
+    vector<PathFindStruct> path = {target};
     PathFindStruct current = target;
-    cout << current.fscore << " " << current.gscore << endl;
     Position current_cf = current.camefrom;
     while (current_cf.x != -9 and current_cf.y != -9) {
         current = map_grid[current_cf.y][current_cf.x];
-        cout << current.fscore << " " << current.gscore << endl;
         current_cf = current.camefrom;
         path.push_back(current);
     }
@@ -103,7 +125,7 @@ vector<PathFindStruct> reconstruct_path(PathFindStruct target,
 }
 
 
-double heuristic(Position pos1, Position pos2) {
+double Finder::heuristic(Position pos1, Position pos2) {
     double x_diff = pos1.x - pos2.x;
     double y_diff = pos1.y - pos2.y;
 
@@ -113,9 +135,11 @@ double heuristic(Position pos1, Position pos2) {
 }
 
 
-vector<PathFindStruct> find_path(PathFindStruct start,
-                                 PathFindStruct target,
-                                 vector<vector<PathFindStruct>> map_grid) {
+vector<PathFindStruct> Finder::find_path(PathFindStruct start,
+                                         PathFindStruct target) {
+
+    vector<vector<PathFindStruct>> map_grid = map_grid_clear;
+    ofstream outfile;
     Position target_pos = target.pos;
     Position start_pos = start.pos;
     start.camefrom.x = -9;
@@ -123,13 +147,12 @@ vector<PathFindStruct> find_path(PathFindStruct start,
     start.gscore = 0;
     start.fscore = heuristic(start_pos, target_pos);
 
-    cout << start.fscore << endl;
-
-    map_grid[start_pos.y][start_pos.x] = start;
-
     vector<PathFindStruct> open_set = {start};
     vector<double> open_set_fscores = {start.fscore};
     vector<PathFindStruct> closed_set = {};
+    start.in_open_set = true;
+
+    map_grid[start_pos.y][start_pos.x] = start;
 
     int map_x_size = map_grid[0].size();
     int map_y_size = map_grid.size();
@@ -144,27 +167,50 @@ vector<PathFindStruct> find_path(PathFindStruct start,
     double tentative_gscore;
     int index;
 
+    if (write_to_file) {
+        outfile.open("output.txt");
+    }
+
     while (open_set.size() > 0) {
-        /*
-        cout << "[";
-        for (PathFindStruct item : open_set) {
-            cout << "(" << item.pos.x << ", " << item.pos.y << ")";
-        }
-        cout << "]" << endl;*/
         argmin = distance(open_set_fscores.begin(),
                           min_element(open_set_fscores.begin(),
                           open_set_fscores.end()));
         current = open_set[argmin];
 
+
+        if (outfile.is_open()) {
+            for (vector<PathFindStruct> row : map_grid) {
+                for (PathFindStruct item : row) {
+                    outfile << "[";
+                    outfile << item.pos.x << ",";
+                    outfile << item.pos.y << ",";
+                    outfile << item.camefrom.x << ",";
+                    outfile << item.camefrom.y << ",";
+                    outfile << item.gscore << ",";
+                    outfile << item.fscore << ",";
+                    outfile << item.cost << ",";
+                    outfile << item.in_open_set << "];";
+                }
+            }
+            outfile << "[" << current.pos.x << "," << current.pos.y << "];";
+            outfile << "\n";
+        }
+        
+
         if (current.pos.x == target.pos.x && current.pos.y == target.pos.y) {
             //cout << "Target reached" << endl;
+            if (outfile.is_open()) {
+                outfile.close();
+            }
             return reconstruct_path(current, map_grid);
         }
 
         open_set.erase(open_set.begin() + argmin);
         open_set_fscores.erase(open_set_fscores.begin() + argmin);
-
+        current.in_open_set = false;
         closed_set.push_back(current);
+
+        map_grid[current.pos.y][current.pos.x] = current;
 
         current_pos = current.pos;
         for (int i = -1; i < 2; i++) {
@@ -184,8 +230,8 @@ vector<PathFindStruct> find_path(PathFindStruct start,
                 neighbor = map_grid[other_y][other_x];
                 neighbor_pos = neighbor.pos;
 
-                tentative_gscore = (double)current.gscore + sqrt((double)(i*i) + (double)(j*j))*((double)(i*i) + (double)(j*j))*(double)neighbor.cost;
-
+                tentative_gscore = (double)current.gscore + sqrt((double)(i*i) + (double)(j*j))*(double)neighbor.cost;
+                
                 if (tentative_gscore < neighbor.gscore) {
                     neighbor.camefrom.x = current_pos.x;
                     neighbor.camefrom.y = current_pos.y;
@@ -203,18 +249,33 @@ vector<PathFindStruct> find_path(PathFindStruct start,
                     if (index >= open_set.size()) {
                         open_set.push_back(neighbor);
                         open_set_fscores.push_back(neighbor.fscore);
+                        neighbor.in_open_set = true;
                     } else {
+                        open_set[index] = neighbor;
                         open_set_fscores[index] = neighbor.fscore;
                     }
-                    index = 0;
 
                     map_grid[other_y][other_x] = neighbor;
                 }
             }
         }
     }
+    if (outfile.is_open()) {
+        outfile.close();
+    }
     return {};
 }
+
+
+vector<vector<PathFindStruct>> Finder::get_map_grid() {
+    return map_grid_clear;
+}
+
+
+PathFindStruct Finder::get_node(int x, int y) {
+    return map_grid_clear[y][x];
+}
+
 
 
 int main() {
@@ -245,17 +306,31 @@ int main() {
         }
         infile.close();
     }
-    //cout << "File read!" << endl;
-
     transpose(map_grid);
-    //print_map_grid(map_grid);
 
-    PathFindStruct start = map_grid[16][24];
-    PathFindStruct target = map_grid[0][0];
+    Finder finder{map_grid, false};
 
+    PathFindStruct start;
     vector<PathFindStruct> final_path;
-    final_path = find_path(start, target, map_grid);
-    print_vector(final_path);
+    PathFindStruct target = finder.get_node(0, 0);
 
+    auto begin = high_resolution_clock::now();
+    for (int i = 0; i < 32; i++) {
+        for (int j = 0; j < 32; j++) {
+            start = finder.get_node(j, i);
+            final_path = finder.find_path(start, target);
+        }
+    }
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(stop - begin);
+
+    double time_elapsed = duration.count();
+
+    int count = 32*32;
+
+    cout << "C++: " << count << " paths computed in:" << endl;
+    cout << time_elapsed/1000.0 << " seconds" << endl;
+    cout << time_elapsed/1000.0/(double)count << " seconds/path" << endl;
+    
     return 0;
 }
