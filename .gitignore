@@ -1,1 +1,5 @@
 *.exe
+output.txt
+output_p.txt
+*.png
+*.mp4
